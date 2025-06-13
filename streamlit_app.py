@@ -443,7 +443,7 @@ def main():
         fooldal()
     elif menu == "Ãšj fuvar":
         uj_fuvar()
-    elif menu == "IdÅ‘vonal":
+    elif menu == "IdÅ‘onal":
         idovonal()
     elif menu == "SzÅ±rÃ©s":
         szures()
