@@ -30,4 +30,4 @@ with tab1:
 
         st.altair_chart(base, use_container_width=True)
     else:
-        st.info("Nincs megjeleníthető fuvar.")
+        st.info("Nincs megjelenítető fuvar.")
