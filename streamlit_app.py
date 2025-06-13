@@ -125,7 +125,7 @@ with tab4:
                 st.session_state.megrendelok = pd.concat([st.session_state.megrendelok, uj], ignore_index=True)
                 st.success(f"{nev} hozzáadva")
 
-    st.subheader("Megrendelők listája")
+    st.subheader("Megrendelők lisája")
     st.dataframe(st.session_state.megrendelok, use_container_width=True)
 
     torol_megr = st.selectbox("Törlendő megrendelő", [""] + st.session_state.megrendelok["Név"].tolist())
