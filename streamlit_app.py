@@ -11,7 +11,7 @@ if "jarmuvek" not in st.session_state:
     st.session_state.jarmuvek = ["AO-BK-447", "RXD-624"]
 
 if "kategoriak" not in st.session_state:
-    st.session_state.kategoriak = ["Belföldi", "Külföldi", "Diákcsoport", "Szerviz"]
+    st.session_state.kategoriak = ["Belföli", "Külföldi", "Diákcsoport", "Szerviz"]
 
 if "megrendelok" not in st.session_state:
     st.session_state.megrendelok = []
