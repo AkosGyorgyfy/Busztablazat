@@ -34,7 +34,7 @@ with tab1:
     if not df.empty:
         chart_data = df.copy()
         chart_data["Kezdete"] = pd.to_datetime(chart_data["Kezdete"])
-        chart_data["Vége"] = pd.to_datetime(chart_data["Vége"])
+        chart_data["Vge"] = pd.to_datetime(chart_data["Vége"])
 
         chart = alt.Chart(chart_data).mark_bar().encode(
             x=alt.X('Kezdete:T', title='Kezdés'),
