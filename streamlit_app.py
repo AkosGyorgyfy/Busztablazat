@@ -1,59 +1,82 @@
 import streamlit as st
 import pandas as pd
 import datetime
-from datetime import timedelta
 import uuid
+import numpy as np
 
 # Adatstruktúrák inicializálása
+def init_data():
 if 'megrendelok' not in st.session_state:
 st.session_state.megrendelok = pd.DataFrame(columns=['id', 'nev', 'kapcsolattarto', 'telefon', 'email'])
+
 if 'gepjarmuvek' not in st.session_state:
 st.session_state.gepjarmuvek = pd.DataFrame(columns=['id', 'rendszam', 'tipus', 'evjarat', 'ferohely'])
-if 'fuvar_kategoriak' not in st.session_state:
-st.session_state.fuvar_kategoriak = pd.DataFrame(columns=['id', 'nev', 'szin'])
-if 'fuvarok' not in st.session_state:
-st.session_state.fuvarok = pd.DataFrame(columns=['id', 'busz_id', 'kategoria_id', 'megrendelo_id', 'datum', 'kezdes', 'vege', 'cel', 'megjegyzes'])
 
-# Alapértelmezett adatok
-if st.session_state.fuvar_kategoriak.empty:
-kategoria_adatok = [
+if 'fuvar_kategoriak' not in st.session_state:
+default_kategoriak = [
 {'id': str(uuid.uuid4()), 'nev': 'Normál fuvar', 'szin': '#FFD700'},
 {'id': str(uuid.uuid4()), 'nev': 'Speciális fuvar', 'szin': '#9932CC'},
 {'id': str(uuid.uuid4()), 'nev': 'Karbantartás', 'szin': '#4169E1'},
 {'id': str(uuid.uuid4()), 'nev': 'Szerviz', 'szin': '#FF8C00'},
 {'id': str(uuid.uuid4()), 'nev': 'Pihenőnap', 'szin': '#808080'}
 ]
-st.session_state.fuvar_kategoriak = pd.DataFrame(kategoria_adatok)
+st.session_state.fuvar_kategoriak = pd.DataFrame(default_kategoriak)
 
-if st.session_state.gepjarmuvek.empty:
-gepjarmu_adatok = [
-{'id': str(uuid.uuid4()), 'rendszam': 'ABC-123', 'tipus': 'Mercedes', 'evjarat': 2019, 'ferohely': 50},
-{'id': str(uuid.uuid4()), 'rendszam': 'DEF-456', 'tipus': 'Volvo', 'evjarat': 2020, 'ferohely': 60}
-]
-st.session_state.gepjarmuvek = pd.DataFrame(gepjarmu_adatok)
+if 'fuvarok' not in st.session_state:
+st.session_state.fuvarok = pd.DataFrame(columns=[
+'id', 'busz_id', 'kategoria_id', 'megrendelo_id',
+'datum', 'kezdes', 'vege', 'cel', 'megjegyzes'
+])
 
-if st.session_state.megrendelok.empty:
-megrendelo_adatok = [
-{'id': str(uuid.uuid4()), 'nev': 'Budapest Közlekedési Zrt.', 'kapcsolattarto': 'Kovács János', 'telefon': '+3611234567', 'email': 'kovacs@bkv.hu'},
-{'id': str(uuid.uuid4()), 'nev': 'Volánbusz', 'kapcsolattarto': 'Nagy Erzsébet', 'telefon': '+3619876543', 'email': 'nagy@volanbusz.hu'}
-]
-st.session_state.megrendelok = pd.DataFrame(megrendelo_adatok)
+init_data()
 
-# Függvények
-def uj_fuvar_hozzaadasa():
-busz_id = st.selectbox('Busz', st.session_state.gepjarmuvek['rendszam'])
-kategoria_id = st.selectbox('Kategória', st.session_state.fuvar_kategoriak['nev'])
-megrendelo_id = st.selectbox('Megrendelő', st.session_state.megrendelok['nev'])
-datum = st.date_input('Dátum', value=datetime.date.today())
-kezdes = st.time_input('Kezdés')
-vege = st.time_input('Vége')
-cel = st.text_input('Cél')
-megjegyzes = st.text_area('Megjegyzés')
-if st.button('Fuvar hozzáadása'):
-busz_id = st.session_state.gepjarmuvek[st.session_state.gepjarmuvek['rendszam'] == busz_id]['id'].values[0]
-kategoria_id = st.session_state.fuvar_kategoriak[st.session_state.fuvar_kategoriak['nev'] == kategoria_id]['id'].values[0]
-megrendelo_id = st.session_state.megrendelok[st.session_state.megrendelok['nev'] == megrendelo_id]['id'].values[0]
-fuvar = {
+# Segédfüggvények
+def get_name_from_id(df, id_value, column='id', name_column='nev'):
+if not df.empty and id_value in df[column].values:
+return df[df[column] == id_value][name_column].values[0]
+return 'Ismeretlen'
+
+def format_time(time_obj):
+if pd.isnull(time_obj):
+return ''
+if isinstance(time_obj, str):
+return time_obj
+return time_obj.strftime('%H:%M')
+
+# Fő oldalfunkciók
+def main_page():
+st.subheader("Statisztikák")
+col1, col2, col3 = st.columns(3)
+with col1:
+st.metric("Regisztrált buszok", len(st.session_state.gepjarmuvek))
+with col2:
+st.metric("Megrendelők", len(st.session_state.megrendelok))
+with col3:
+st.metric("Fuvarok", len(st.session_state.fuvarok))
+
+def add_fuvar():
+with st.form("Új fuvar", clear_on_submit=True):
+busz_rendszam = st.selectbox("Busz", options=st.session_state.gepjarmuvek['rendszam'])
+kategoria_nev = st.selectbox("Kategória", options=st.session_state.fuvar_kategoriak['nev'])
+megrendelo_nev = st.selectbox("Megrendelő", options=[''] + st.session_state.megrendelok['nev'].tolist())
+datum = st.date_input("Dátum", value=datetime.date.today())
+col1, col2 = st.columns(2)
+with col1:
+kezdes = st.time_input("Kezdés időpontja")
+with col2:
+vege = st.time_input("Befejezés időpontja")
+cel = st.text_input("Cél")
+megjegyzes = st.text_area("Megjegyzés")
+
+if st.form_submit_button("Mentés"):
+busz_id = st.session_state.gepjarmuvek[
+st.session_state.gepjarmuvek['rendszam'] == busz_rendszam]['id'].values[0]
+kategoria_id = st.session_state.fuvar_kategoriak[
+st.session_state.fuvar_kategoriak['nev'] == kategoria_nev]['id'].values[0]
+megrendelo_id = st.session_state.megrendelok[
+st.session_state.megrendelok['nev'] == megrendelo_nev]['id'].values[0] if megrendelo_nev else None
+
+new_fuvar = pd.DataFrame([{
 'id': str(uuid.uuid4()),
 'busz_id': busz_id,
 'kategoria_id': kategoria_id,
@@ -63,136 +86,66 @@ fuvar = {
 'vege': vege,
 'cel': cel,
 'megjegyzes': megjegyzes
-}
-st.session_state.fuvarok = st.session_state.fuvarok.append(fuvar, ignore_index=True)
-st.success('Fuvar sikeresen hozzáadva!')
+}])
+
+st.session_state.fuvarok = pd.concat(
+[st.session_state.fuvarok, new_fuvar],
+ignore_index=True
+)
+st.success("Fuvar sikeresen hozzáadva!")
 
 def admin_panel():
-st.subheader('Adminisztráció')
-tab1, tab2, tab3 = st.tabs(['Kategóriák', 'Gépjárművek', 'Megrendelők'])
+tab1, tab2, tab3 = st.tabs(["Kategóriák", "Gépjárművek", "Megrendelők"])
+
 with tab1:
-st.subheader('Fuvar kategóriák')
+st.subheader("Fuvar kategóriák kezelése")
 for idx, row in st.session_state.fuvar_kategoriak.iterrows():
-with st.expander(f"{row['nev']} (Szin: {row['szin']})"):
-nev = st.text_input('Név', value=row['nev'], key=f"kategorianev_{idx}")
-szin = st.text_input('Szín', value=row['szin'], key=f"kategoriaszin_{idx}")
-if st.button('Mentés', key=f"kategoriasave_{idx}"):
-st.session_state.fuvar_kategoriak.at[idx, 'nev'] = nev
-st.session_state.fuvar_kategoriak.at[idx, 'szin'] = szin
-st.success('Kategória frissítve!')
-if st.button('Új kategória hozzáadása'):
-nev = st.text_input('Új kategória neve', key='uj_kategoria_nev')
-szin = st.text_input('Színkód', key='uj_kategoria_szin')
-if nev and szin:
-st.session_state.fuvar_kategoriak = st.session_state.fuvar_kategoriak.append({
+with st.expander(f"{row['nev']}"):
+with st.form(f"kategoria_{row['id']}"):
+new_name = st.text_input("Név", value=row['nev'], key=f"name_{row['id']}")
+new_color = st.color_picker("Szín", value=row['szin'], key=f"color_{row['id']}")
+if st.form_submit_button("Mentés"):
+st.session_state.fuvar_kategoriak.at[idx, 'nev'] = new_name
+st.session_state.fuvar_kategoriak.at[idx, 'szin'] = new_color
+st.experimental_rerun()
+
+with st.expander("Új kategória", expanded=False):
+with st.form("Új kategória"):
+new_cat_name = st.text_input("Kategória neve")
+new_cat_color = st.color_picker("Szín")
+if st.form_submit_button("Hozzáadás"):
+new_category = pd.DataFrame([{
 'id': str(uuid.uuid4()),
-'nev': nev,
-'szin': szin
-}, ignore_index=True)
-st.success('Kategória hozzáadva!')
+'nev': new_cat_name,
+'szin': new_cat_color
+}])
+st.session_state.fuvar_kategoriak = pd.concat(
+[st.session_state.fuvar_kategoriak, new_category],
+ignore_index=True
+)
+st.experimental_rerun()
+
 with tab2:
-st.subheader('Gépjárművek')
+st.subheader("Gépjárművek kezelése")
 for idx, row in st.session_state.gepjarmuvek.iterrows():
 with st.expander(f"{row['rendszam']}"):
-rendszam = st.text_input('Rendszám', value=row['rendszam'], key=f"rendszam_{idx}")
-tipus = st.text_input('Típus', value=row['tipus'], key=f"tipus_{idx}")
-evjarat = st.number_input('Évjárat', value=row['evjarat'], key=f"evjarat_{idx}")
-ferohely = st.number_input('Férőhely', value=row['ferohely'], key=f"ferohely_{idx}")
-if st.button('Mentés', key=f"gepjarmu_save_{idx}"):
-st.session_state.gepjarmuvek.at[idx, 'rendszam'] = rendszam
-st.session_state.gepjarmuvek.at[idx, 'tipus'] = tipus
-st.session_state.gepjarmuvek.at[idx, 'evjarat'] = evjarat
-st.session_state.gepjarmuvek.at[idx, 'ferohely'] = ferohely
-st.success('Gépjármű frissítve!')
-if st.button('Új gépjármű hozzáadása'):
-rendszam = st.text_input('Rendszám', key='uj_rendszam')
-tipus = st.text_input('Típus', key='uj_tipus')
-evjarat = st.number_input('Évjárat', key='uj_evjarat')
-ferohely = st.number_input('Férőhely', key='uj_ferohely')
-if rendszam:
-st.session_state.gepjarmuvek = st.session_state.gepjarmuvek.append({
-'id': str(uuid.uuid4()),
-'rendszam': rendszam,
-'tipus': tipus,
-'evjarat': evjarat,
-'ferohely': ferohely
-}, ignore_index=True)
-st.success('Gépjármű hozzáadva!')
-with tab3:
-st.subheader('Megrendelők')
-for idx, row in st.session_state.megrendelok.iterrows():
-with st.expander(f"{row['nev']}"):
-nev = st.text_input('Megrendelő', value=row['nev'], key=f"megrendelo_nev_{idx}")
-kapcsolattarto = st.text_input('Kapcsolattartó', value=row['kapcsolattarto'], key=f"kapcsolattarto_{idx}")
-telefon = st.text_input('Telefon', value=row['telefon'], key=f"telefon_{idx}")
-email = st.text_input('E-mail', value=row['email'], key=f"email_{idx}")
-if st.button('Mentés', key=f"megrendelo_save_{idx}"):
-st.session_state.megrendelok.at[idx, 'nev'] = nev
-st.session_state.megrendelok.at[idx, 'kapcsolattarto'] = kapcsolattarto
-st.session_state.megrendelok.at[idx, 'telefon'] = telefon
-st.session_state.megrendelok.at[idx, 'email'] = email
-st.success('Megrendelő frissítve!')
-if st.button('Új megrendelő hozzáadása'):
-nev = st.text_input('Megrendelő', key='uj_megrendelo_nev')
-kapcsolattarto = st.text_input('Kapcsolattartó', key='uj_kapcsolattarto')
-telefon = st.text_input('Telefon', key='uj_telefon')
-email = st.text_input('E-mail', key='uj_email')
-if nev:
-st.session_state.megrendelok = st.session_state.megrendelok.append({
-'id': str(uuid.uuid4()),
-'nev': nev,
-'kapcsolattarto': kapcsolattarto,
-'telefon': telefon,
-'email': email
-}, ignore_index=True)
-st.success('Megrendelő hozzáadva!')
+with st.form(f"gepjarmu_{row['id']}"):
+new_rendszam = st.text_input("Rendszám", value=row['rendszam'])
+new_tipus = st.text_input("Típus", value=row['tipus'])
+new_evjarat = st.number_input("Évjárat", value=row['evjarat'])
+new_ferohely = st.number_input("Férőhely", value=row['ferohely'])
+if st.form_submit_button("Mentés"):
+st.session_state.gepjarmuvek.at[idx, 'rendszam'] = new_rendszam
+st.session_state.gepjarmuvek.at[idx, 'tipus'] = new_tipus
+st.session_state.gepjarmuvek.at[idx, 'evjarat'] = new_evjarat
+st.session_state.gepjarmuvek.at[idx, 'ferohely'] = new_ferohely
+st.experimental_rerun()
 
-def fuvarok_listazasa():
-st.subheader('Fuvarok listája')
-df = st.session_state.fuvarok.copy()
-if not df.empty:
-# ID-k helyett nevek beillesztése
-df['busz_id'] = df['busz_id'].map(lambda x: st.session_state.gepjarmuvek[st.session_state.gepjarmuvek['id']==x]['rendszam'].values[0] if not st.session_state.gepjarmuvek[st.session_state.gepjarmuvek['id']==x].empty else 'Ismeretlen')
-df['kategoria_id'] = df['kategoria_id'].map(lambda x: st.session_state.fuvar_kategoriak[st.session_state.fuvar_kategoriak['id']==x]['nev'].values[0] if not st.session_state.fuvar_kategoriak[st.session_state.fuvar_kategoriak['id']==x].empty else 'Ismeretlen')
-df['megrendelo_id'] = df['megrendelo_id'].map(lambda x: st.session_state.megrendelok[st.session_state.megrendelok['id']==x]['nev'].values[0] if not st.session_state.megrendelok[st.session_state.megrendelok['id']==x].empty else 'Ismeretlen')
-st.dataframe(df[['busz_id', 'kategoria_id', 'megrendelo_id', 'datum', 'kezdes', 'vege', 'cel', 'megjegyzes']])
-else:
-st.write('Még nincsenek fuvarok rögzítve.')
-
-def fuvar_szures():
-st.subheader('Fuvar szűrése')
-busz = st.selectbox('Busz', ['Mind'] + st.session_state.gepjarmuvek['rendszam'].tolist())
-kategoria = st.selectbox('Kategória', ['Mind'] + st.session_state.fuvar_kategoriak['nev'].tolist())
-megrendelo = st.selectbox('Megrendelő', ['Mind'] + st.session_state.megrendelok['nev'].tolist())
-datum = st.date_input('Dátum', value=None)
-df = st.session_state.fuvarok.copy()
-if not df.empty:
-df['busz_id'] = df['busz_id'].map(lambda x: st.session_state.gepjarmuvek[st.session_state.gepjarmuvek['id']==x]['rendszam'].values[0] if not st.session_state.gepjarmuvek[st.session_state.gepjarmuvek['id']==x].empty else 'Ismeretlen')
-df['kategoria_id'] = df['kategoria_id'].map(lambda x: st.session_state.fuvar_kategoriak[st.session_state.fuvar_kategoriak['id']==x]['nev'].values[0] if not st.session_state.fuvar_kategoriak[st.session_state.fuvar_kategoriak['id']==x].empty else 'Ismeretlen')
-df['megrendelo_id'] = df['megrendelo_id'].map(lambda x: st.session_state.megrendelok[st.session_state.megrendelok['id']==x]['nev'].values[0] if not st.session_state.megrendelok[st.session_state.megrendelok['id']==x].empty else 'Ismeretlen')
-if busz != 'Mind':
-df = df[df['busz_id'] == busz]
-if kategoria != 'Mind':
-df = df[df['kategoria_id'] == kategoria]
-if megrendelo != 'Mind':
-df = df[df['megrendelo_id'] == megrendelo]
-if datum:
-df = df[df['datum'] == datum]
-st.dataframe(df[['busz_id', 'kategoria_id', 'megrendelo_id', 'datum', 'kezdes', 'vege', 'cel', 'megjegyzes']])
-else:
-st.write('Még nincsenek fuvarok rögzítve.')
-
-# Főmenü
-st.title('Busz Fuvar Kezelő')
-menu = st.sidebar.radio('Menü', ['Főoldal', 'Fuvar hozzáadása', 'Adminisztráció', 'Fuvarok listája', 'Fuvar szűrése'])
-
-if menu == 'Főoldal':
-st.write('Üdvözöljük a Busz Fuvar Kezelő alkalmazásban!')
-elif menu == 'Fuvar hozzáadása':
-uj_fuvar_hozzaadasa()
-elif menu == 'Adminisztráció':
-admin_panel()
-elif menu == 'Fuvarok listája':
-fuvarok_listazasa()
-elif menu == 'Fuvar szűrése':
-fuvar_szures()
+with st.expander("Új gépjármű", expanded=False):
+with st.form("Új gépjármű"):
+new_rendszam = st.text_input("Rendszám")
+new_tipus = st.text_input("Típus")
+new_evjarat = st.number_input("Évjárat", min_value=1990, max_value=datetime.date.today().year)
+new_ferohely = st.number_input("Férőhely", min_value=1)
+if st.form_submit_button("Hozzáadás"):
+new_vehicle = pd.DataFrame([{
